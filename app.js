@@ -5,11 +5,12 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
 const mongoose = require("mongoose");
-const encrypt= require("mongoose-encryption");
+const bcrypt= require("bcrypt");
 const app = express();
 require('dotenv').config();
 
 app.set('view engine', 'ejs');
+const saltRound=10;
 
 app.use(bodyParser.urlencoded({
   extended: true
@@ -22,7 +23,7 @@ const userSchema= new mongoose.Schema({
   password: String
 });
 const secret=process.env.SECRET;//encrytionkey:secret
-userSchema.plugin(encrypt,{secret: secret, encryptedFields:["password"]});
+
 
 const User= new mongoose.model("User", userSchema);
 
@@ -38,29 +39,32 @@ app.get("/login",function(req,res){
 app.post("/login", function(req,res){
   const username=req.body.username;
   const password=req.body.password;
-  User.findOne({email:username},function(err, founduser){
-if(err)
-  {console.log(err);
-
-  }
-else{
-  if(founduser){
-    if(founduser.password===password)
-      {res.render("secrets");
-      }}}
- });
+  User.findOne({email: username},function(err,foundUser){
+if(err){
+  console.log(err);
+}else{
+  if(foundUser){
+  bcrypt.compare(password, foundUser.password, function(err, response){
+    if(response===true){
+      res.render("secrets")}
+  });
+}
+}
+});  
 });
 
 app.get("/register", function(req,res){
     res.render("register");
 });
 app.post("/register",function(req,res){
+  bcrypt.hash(req.body.password, saltRound, function(err,hash){
   const newUser = new User({email:req.body.username,
-    password:req.body.password});
+    password:hash});
     
 newUser.save(function(err){
   if(err){console.log(err);}
   else{res.render("secrets");}
+});
 });
 
 });
